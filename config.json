@@ -1,0 +1,14 @@
+{
+    "app_name": "vba_tools",
+    "description": "VBA utilities",
+    "author": "Hans Yao",
+    "email": "hansyow@gmail.com",
+    "create_ate": "Wed Jun 08 2022 10:52:32 GMT+0800 (中国标准时间)",
+    "excel_file": "index.xlsb",
+    "vba_folder": "vba-files",
+    "ribbon_file": "customUI14",
+    "ribbon_folder": "ribbons",
+    "logs": "on",
+    "xvba_packages": {},
+    "xvba_dev_packages": {}
+}

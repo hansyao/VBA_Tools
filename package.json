@@ -1,0 +1,15 @@
+{
+    "name": "vba_tools",
+    "version": "1.0.0",
+    "description": "VBA tools",
+    "main": "index.js",
+    "author": "Hans Yao",
+    "license": "MIT",
+    "dependencies": {
+        "excel-types": "1.0.0",
+        "Xlog": "1.0.0"
+    },
+    "devDependencies": {
+        "@localsmart/xvba-cli": "^1.0.2"
+    }
+}
