@@ -5,7 +5,7 @@ vba utilities which compatible with 32bit and 64bits
 ## FreeReg COM/ActiveX
 class: [clsDLLAsm.cls](https://github.com/hansyao/VBA_Tools/blob/main/vba-files/Class/clsDLLAsm.cls)
 
-1. Idea: create a native solution to use COM/ActiveX control in VBA without registration (side-by-side Assembly)
+1. **Idea**: create a native solution to use COM/ActiveX control in VBA without registration (side-by-side Assembly)
 
 2. **concept**: *call COM/ActiveX thru ActCtx Content*
 >Microsoft provided The ActivateActCtx function activates the specified activation context. It does this by pushing the specified activation context to the top of the activation stack. The specified activation context is thus associated with the current thread and any appropriate side-by-side API functions.
