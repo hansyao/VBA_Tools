@@ -9,6 +9,7 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 '''=============================================================================
 ''' VBA Side-By-Side COM/ActiveX tool
+''' author: Hans Yao<hansyao@gmail.com>
 ''' -----------------------------------------------
 ''' https://github.com/hansyao/VBA_Tools
 ''' -----------------------------------------------
@@ -308,10 +309,10 @@ Public Sub FinalizeActCtx()
     Dim ret As Boolean
 
     If actHandle = 0& Or _
-        actHandle <> INVALID_HANDLE_VALUE _
-        Then actStatus = False Or _
-        current_senario = 2: _
-        actStatus = False: Exit Sub
+        actHandle = INVALID_HANDLE_VALUE Or _
+        current_senario = 2 _
+        Then actStatus = False: _
+        Exit Sub
 
     If GetCurrentActCtx(actHandle) Then
         ret = DeactivateActCtx(0&, ByVal actCookie)
@@ -327,14 +328,14 @@ Private Function AssemblyName( _
     ByVal Description As String, _
     ByVal Name As String, _
     ByVal DllDateTime As Date) As String
-    
+
     Company = AssemblyNamePart(Company)
     If Len(Description) Then
         Description = AssemblyNamePart(Description)
     Else
         Description = Name
     End If
-    
+
     'Max length: 60.
     If Len(Company) Then
         AssemblyName = Left$(Company, 59 - Len(Description)) & "." & Description
@@ -354,7 +355,7 @@ Private Function AssemblyNamePart(ByVal Part As String) As String
     Dim Skipping As Boolean
     Dim PastFirstAlpha As Boolean 'Avoiding outputting "." as first char of result.
     Dim SUsed As Long
-    
+
     S = Space$(MAX_LENGTH)
     For i = 1 To Len(Part)
         C = Mid$(Part, i, 1)
@@ -382,7 +383,7 @@ Private Function AttributeStrings(ByVal Mask As Integer) As String
     'Instead call this passing TypeLibInfo.AttributeMask value:
     Dim S As String
     Dim Length As Long
-    
+
     If Mask And LIBFLAG_FRESTRICTED Then S = S & "RESTRICTED,"
     If Mask And LIBFLAG_FCONTROL Then S = S & "CONTROL,"
     If Mask And LIBFLAG_FHIDDEN Then S = S & "HIDDEN,"
@@ -391,7 +392,8 @@ Private Function AttributeStrings(ByVal Mask As Integer) As String
     If Length Then AttributeStrings = Left$(S, Length - 1)
 End Function
 
-'create assembly Manifest
+'create assembly Manifest - source:
+'https://www.vbforums.com/showthread.php?796881-VB6-Reg-Free-COM-at-runtime-via-Microsoft-Windows-ActCtx
 Public Sub CreateAssemblyManifest()
     'Returns True on success.
     Const XMLPI_ATTRIBS As String = "version=""1.0"" encoding=""UTF-8"" standalone=""yes"""
@@ -420,16 +422,16 @@ Public Sub CreateAssemblyManifest()
         End With
     End With
     Set ShellFolderItem = Nothing
-    
+
     'Set TypeLibInfo = New TLI.TypeLibInfo
     'Aborts with exception if not a valid DLL:
     TypeLibInfo.ContainingFile = mDllFile
-    
+
     If TypeLibInfo.CoClasses.Count = 0 Then
         MsgBox "DLL file contains no classes", vbOKOnly Or vbExclamation
         Exit Sub
     End If
-    
+
     With DOMDocument
         Set ProcessingInstruction = .createProcessingInstruction("xml", XMLPI_ATTRIBS)
         .appendChild ProcessingInstruction
@@ -519,7 +521,7 @@ Public Sub CreateAssemblyManifest()
             Next
         End With
     End With
-    
+
     mManifestXML = DOMDocument.XML
     embededManifestConv DOMDocument
     Call progidToDict(mManifestXML)
@@ -541,7 +543,7 @@ Public Function embededManifestConv(ByVal DOMDocument As Object)
         .Open
         .Type = adTypeBinary
         DOMDocument.save Stream
-        
+
         'Trim off unwanted trailing CRLF (or LF though MSXML generally uses CRLF):
         .Position = .Position - 2
         Bytes = .Read(2)
@@ -551,14 +553,14 @@ Public Function embededManifestConv(ByVal DOMDocument As Object)
             .Position = .Position - 1
         End If
         .SetEOS
-        
+
         'Pad to DWORD boundary if needed to create an embeddable manifest:
         PartialDword = .Position Mod 4
         If PartialDword Then
             Bytes = StrConv(Space$(4 - PartialDword), vbFromUnicode)
             .Write Bytes
         End If
-        
+
         .SaveToFile Temp, adSaveCreateOverWrite
         .Close
     End With
@@ -582,7 +584,7 @@ Public Function progidToDict(ByVal strManifest As String) As Object
 
     XDoc.async = False: XDoc.validateOnParse = False
     XDoc.loadXml strManifest
-    
+
     'Get Document Elements
     Set lists = XDoc.SelectNodes("//*")
 
@@ -622,7 +624,7 @@ Public Function oCtxTest(Optional ByVal clsid As String, Optional ByVal progid A
     If VBA.StrComp(VBA.TypeName(testObj), "Nothing", vbTextCompare) = 0 Then
         oCtxTest = False: Exit Function
     End If
-    
+
     oCtxTest = True
 
 err_handler_exit:
@@ -634,7 +636,7 @@ err_handler:
         Debug.Print err_message("oCtxTest", err.Number, err.Description, Erl)
         oCtxTest = False
     End If
-    
+
     Resume err_handler_exit
 End Function
 
@@ -658,7 +660,7 @@ Public Function getDllFromManifest(Optional ByVal manifestFile As String)
     If VBA.Len(dllName) = 0 Then err.Raise 100, , "not find dll filename "
 
     path = VBA.Left(manifestFile, VBA.InStrRev(manifestFile, "\"))
-    
+
     dllName = path & dllName
     getDllFromManifest = dllName
 
@@ -671,7 +673,7 @@ err_handler:
     If err.Number <> 0 Then
         Debug.Print err_message("getDllFromManifest", err.Number, err.Description, Erl)
     End If
-    
+
     Resume err_handler_exit
 End Function
 
@@ -682,13 +684,13 @@ Public Function MAKEWORD(ByVal wLow As Integer, ByVal wHigh As Integer) As Integ
     Else
         MAKEWORD = (wHigh * 256) + wLow
     End If
-    
+
 End Function
 
 Public Function HIWORD(ByVal dwValue As Long) As Long
     CopyMemory ByVal VarPtr(HIWORD), ByVal VarPtr(dwValue) + 2, 2
 End Function
-  
+
 Public Function LOWORD(ByVal dwValue As Long) As Long
     CopyMemory ByVal VarPtr(LOWORD), ByVal VarPtr(dwValue), 2
 End Function
@@ -716,9 +718,9 @@ Public Function getManifestByResourceApi(Optional ByVal codepage As Long = CP_UT
     'lpName: MAKEINTRESOURCE(resource_id)
     'lpType(resource type or RT_MANIFEST = MAKEINTRESOURCE(24)): https://docs.microsoft.com/en-us/windows/win32/menurc/resource-types
 
-    'stackoverflow: concept initated by Jan 2009, rewrote by me in VBA in Jun 2022 --- commented by Hans Yao
+    'stackoverflow: concept initated by Jan 2009, implemented in VBA in Jun 2022 by Hans Yao<hansyow@gmail.com>
     'https://stackoverflow.com/questions/420852/reading-an-applications-manifest-file
-    
+
     'resource id: https://docs.microsoft.com/en-us/windows/win32/sbscs/using-side-by-side-assemblies-as-a-resource
     '* Value of MANIFEST_RESOURCE_ID
     ' a. Manifest specifies the Process Default?
@@ -804,7 +806,7 @@ Public Function ActiveActCtx(ByVal manifestFile As String, ByRef actHandle As Lo
         .lpAssemblyDirectory = Application.path
         .lpSource = manifestFile
     End With
-    
+
     '/* Activate the context */
     actHandle = CreateActCtx(actCTX)
     On Error GoTo err_handler
@@ -833,7 +835,7 @@ err_handler:
 
 End Function
 
-Public Function InitObject(ByRef myObj As Object, Optional ByVal clsid As String, Optional ByVal progid As String, Optional ByVal senario As Integer = 0) As Boolean
+Public Function InitObject(ByRef myObj As Object, Optional ByVal clsid As String, Optional ByVal progid As String, Optional ByVal scenario As Integer = 0) As Boolean
     Dim ret As Boolean
 
     If VBA.Len(clsid) = 0 And VBA.Len(progid) = 0 Then
@@ -847,13 +849,13 @@ Public Function InitObject(ByRef myObj As Object, Optional ByVal clsid As String
         Case 0, 1:
             If actStatus = False Then
                 ret = ActiveActCtx(Me.manifestFile, actHandle, actCookie)
-                
+
                 If ret = False Then
                     On Error GoTo err_handler
                     err.Raise 100, , "ActiveActCtx failed:" & vbNewLine & "clsid:" & clsid & vbNewLine & "progid:" & progid
                 End If
             End If
-    
+
             '/* now ready and load dll */
              '/* Check if we already have a loaded module for this service */
             hModule = GetModuleHandle(mDllFile)
@@ -918,7 +920,7 @@ Public Function getDllFunction(ByVal procName As String, ByRef lpAddress) As Boo
     Dim myObj As Object
 
     Dim dllName As String
-    
+
     dllName = mDllFile
 
     '/* Check if we already have a loaded module for this service */
@@ -930,7 +932,7 @@ Public Function getDllFunction(ByVal procName As String, ByRef lpAddress) As Boo
     End If
 
     If hModule = 0 Then err.Number = 100: err.Description = "failed to load " & dllName: GoTo err_handler
-    
+
     '/* Next, get the address being looked up*/
     'OLE does not provide this function. DLLs that support the OLE Component Object Model (COM) must implement DllGetClassObject in OLE object handlers or DLL applications.
     'https://docs.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-dllgetclassobject
