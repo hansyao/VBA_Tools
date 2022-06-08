@@ -9,7 +9,7 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 '''=============================================================================
 ''' VBA Side-By-Side COM/ActiveX tool
-''' author: Hans Yao<hansyao@gmail.com>
+''' author: Hans Yao<hansyow@gmail.com>
 ''' -----------------------------------------------
 ''' https://github.com/hansyao/VBA_Tools
 ''' -----------------------------------------------
