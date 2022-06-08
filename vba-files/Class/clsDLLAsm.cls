@@ -41,6 +41,7 @@ Private Const NODE_ELEMENT = 1
 Private Const ssfDESKTOP = 0
 Private Const adTypeBinary = 1
 Private Const adSaveCreateOverWrite = 2
+Private Const INVALID_HANDLE_VALUE = -1
 
 'code page
 Private Const CP_ACP = 0 ' default to ANSI code page
@@ -83,6 +84,8 @@ Private Declare PtrSafe Sub AddRefActCtx Lib "kernel32" (ByRef lphActCtx As Long
 
 Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
 Private Declare PtrSafe Function MultiByteToWideChar Lib "kernel32 " (ByVal codepage As Long, ByVal dwFlags As Long, ByVal lpMultiByteStr As LongPtr, ByVal cchMultiByte As Long, ByVal lpWideCharStr As LongPtr, ByVal cchWideChar As Long) As Long
+
+Private Declare PtrSafe Function GetLastError Lib "kernel32" () As Long
 
 #Else
 
@@ -246,6 +249,8 @@ Private actCookie As Long
 Private actHandle As Long
 #End If
 
+Private current_senario As Integer
+
 Public Property Get dllFile() As String
     dllFile = mDllFile
 End Property
@@ -286,7 +291,9 @@ Private Sub Class_Terminate()
     hModule = GetModuleHandle(mDllFile)
     If hModule Then FreeLibrary (hModule)
 
-    If actHandle <> 0& Then Call FinalizeActCtx
+    If actHandle <> 0& And _
+        actHandle <> INVALID_HANDLE_VALUE And _
+        current_senario <> 2 Then Call FinalizeActCtx
 
     Set shell32 = Nothing
     Set DOMDocument = Nothing
@@ -300,7 +307,12 @@ End Sub
 Public Sub FinalizeActCtx()
     Dim ret As Boolean
 
-    If actHandle = 0& Then actStatus = False: Exit Sub
+    If actHandle = 0& Or _
+        actHandle <> INVALID_HANDLE_VALUE _
+        Then actStatus = False Or _
+        current_senario = 2: _
+        actStatus = False: Exit Sub
+
     If GetCurrentActCtx(actHandle) Then
         ret = DeactivateActCtx(0&, ByVal actCookie)
         If ret Then actCookie = 0&
@@ -423,12 +435,12 @@ Public Sub CreateAssemblyManifest()
         .appendChild ProcessingInstruction
         Set AssemblyNode = .appendChild(.createNode(NODE_ELEMENT, "assembly", ASM_V1_NAMESPACE))
         With AssemblyNode
-            .text = vbNullString 'Hack to prevent serializing with collapsed tags, i.e.
+            .Text = vbNullString 'Hack to prevent serializing with collapsed tags, i.e.
                                  'XML output with <a></a> instead of <a/> form.
             .setAttribute "manifestVersion", "1.0"
             Set Node = .appendChild(DOMDocument.createNode(NODE_ELEMENT, "assemblyIdentity", ASM_V1_NAMESPACE))
             With Node
-                .text = vbNullString
+                .Text = vbNullString
                 .setAttribute "name", AssemblyName(Company, _
                                                    TypeLibInfo.HelpString(0), _
                                                    TypeLibInfo.Name, _
@@ -441,7 +453,7 @@ Public Sub CreateAssemblyManifest()
         With AssemblyNode
             Set Node = .appendChild(DOMDocument.createNode(NODE_ELEMENT, "file", ASM_V1_NAMESPACE))
             With Node
-                .text = vbNullString
+                .Text = vbNullString
                 Temp = mDllFile
                 Pos = InStrRev(Temp, "\")
                 If Pos Then Temp = Mid$(Temp, Pos + 1)
@@ -451,7 +463,7 @@ Public Sub CreateAssemblyManifest()
                 For Each CoClassInfo In TypeLibInfo.CoClasses
                     Set Node = .appendChild(DOMDocument.createNode(NODE_ELEMENT, "comClass", ASM_V1_NAMESPACE))
                     With Node
-                        .text = vbNullString
+                        .Text = vbNullString
                         .setAttribute "clsid", CoClassInfo.GUID
                         .setAttribute "tlbid", TypeLibInfo.GUID
                         Temp = CoClassInfo.HelpString(0)
@@ -481,7 +493,7 @@ Public Sub CreateAssemblyManifest()
                 Next
                 Set Node = .appendChild(DOMDocument.createNode(NODE_ELEMENT, "typelib", ASM_V1_NAMESPACE))
                 With Node
-                    .text = vbNullString
+                    .Text = vbNullString
                     .setAttribute "tlbid", TypeLibInfo.GUID
                     ResourceId = TypeLibInfo.LCID And &HFFFF&
                     If ResourceId = 0 Then
@@ -498,7 +510,7 @@ Public Sub CreateAssemblyManifest()
             For Each InterfaceInfo In TypeLibInfo.Interfaces
                 Set Node = .appendChild(DOMDocument.createNode(NODE_ELEMENT, "comInterfaceExternalProxyStub", ASM_V1_NAMESPACE))
                 With Node
-                    .text = vbNullString
+                    .Text = vbNullString
                     .setAttribute "name", InterfaceInfo.Name
                     .setAttribute "iid", InterfaceInfo.GUID
                     .setAttribute "tlbid", TypeLibInfo.GUID
@@ -641,7 +653,7 @@ Public Function getDllFromManifest(Optional ByVal manifestFile As String)
     End With
 
     On Error GoTo err_handler
-   dllName = DOMDocument.SelectSingleNode("//*[2]/@name").text
+   dllName = DOMDocument.SelectSingleNode("//*[2]/@name").Text
     On Error GoTo err_handler
     If VBA.Len(dllName) = 0 Then err.Raise 100, , "not find dll filename "
 
@@ -795,10 +807,15 @@ Public Function ActiveActCtx(ByVal manifestFile As String, ByRef actHandle As Lo
     
     '/* Activate the context */
     actHandle = CreateActCtx(actCTX)
-    ret = ActivateActCtx(actHandle, actCookie)
+    On Error GoTo err_handler
+    If actHandle = INVALID_HANDLE_VALUE Or actHandle = 0& Then err.Raise 100, , "CreateActCtx: failed"
 
-    If ret = False Then err.Number = 100: err.Description = "ActivateActCtx failed": GoTo err_handler
-    actStatus = True
+    '/* activate achandle */
+    ret = ActivateActCtx(actHandle, actCookie)
+    On Error GoTo err_handler
+    If ret = False Then err.Raise 100, , "ActivateActCtx failed"
+
+    actStatus = ret
     ActiveActCtx = ret
 
 err_handler_exit:
@@ -823,6 +840,8 @@ Public Function InitObject(ByRef myObj As Object, Optional ByVal clsid As String
         On Error GoTo err_handler
         err.Raise 94, , "must have one of clsid and progid"
     End If
+
+    current_senario = senario
 
     Select Case senario
         Case 0, 1:
@@ -856,6 +875,13 @@ Public Function InitObject(ByRef myObj As Object, Optional ByVal clsid As String
 
         Case 2:
             Dim oCtx As Object
+
+            '/* now ready and load dll */
+             '/* Check if we already have a loaded module for this service */
+            hModule = GetModuleHandle(mDllFile)
+            If hModule = 0 Then
+                hModule = LoadLibraryEx(mDllFile, 0&, LOAD_WITH_ALTERED_SEARCH_PATH)
+            End If
 
             actStatus = False
             Set oCtx = VBA.CreateObject("Microsoft.Windows.ActCtx")

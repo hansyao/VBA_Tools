@@ -36,13 +36,14 @@ Private Sub cmdSelectDll_Click()
     dllFile = Application.GetOpenFileName(FileFilter:="COM/OCX file (*.dll; *.ocx), *.dll;*.ocx", title:="select DLL/OCX file", MultiSelect:=False)
     If VBA.Len(dllFile) = 0 Or dllFile = "False" Then Exit Sub
 
+    If dllFile = Me.lblDllFile Then Exit Sub
+
     manifestFile = Left(dllFile, VBA.InStrRev(dllFile, ".")) & "manifest"
 
     On Error Resume Next
     Set dll = Nothing
     With dll
         .dllFile = dllFile
-        Me.lblDllFile.Caption = dllFile
 
         If VBA.Len(Dir(manifestFile)) = 0 Then
             On Error GoTo err_handler
@@ -57,6 +58,7 @@ Private Sub cmdSelectDll_Click()
     End With
 
     'show dll/ocx info in userform
+    Me.lblDllFile.Caption = dllFile
     dictToListBox dict
 
 err_handler_exit:
@@ -83,8 +85,8 @@ Private Sub dictToListBox(ByVal dict As Object)
         For Each progid In dict
             iCount = .ListCount
             .AddItem
-            .list(iCount, 0) = VBA.CStr(progid)
-            .list(iCount, 1) = VBA.CStr(dict(progid))
+            .List(iCount, 0) = VBA.CStr(progid)
+            .List(iCount, 1) = VBA.CStr(dict(progid))
         Next
     End With
 End Sub
@@ -99,11 +101,15 @@ Private Sub cmdSelectManifest_Click()
 
     manifestFile = Application.GetOpenFileName(FileFilter:="COM/OCX file (*.manifest; *.xml), *.manifest; *.xml", title:="select manifest File", MultiSelect:=False)
     If VBA.Len(manifestFile) = 0 Or manifestFile = "False" Then Exit Sub
+    If manifestFile = Me.lblFilePath Then Exit Sub
 
-    Me.lblFilePath.Caption = manifestFile
     dll.manifestFile = manifestFile
     dll.dllFile = dll.getDllFromManifest(manifestFile)
-    Me.lblDllFile = dll.dllFile
+
+    If Me.lblDllFile.Caption = dll.dllFile Then MsgBox "previous dll filename exists!": Exit Sub
+
+    Me.lblDllFile.Caption = dll.dllFile
+    Me.lblFilePath.Caption = manifestFile
     'Set dll.ManifestDict = Nothing
 
     strManifest = loadXmlStr(manifestFile)
@@ -128,13 +134,16 @@ Private Sub cmdTest_Click()
     senario = getSenario()
 
     Me.ListBox1.ColumnCount = 3
+    If Not IsNull(Me.ListBox1.List(0, 2)) Then Exit Sub
+
     For i = 0 To Me.ListBox1.ListCount - 1
         With Me.ListBox1
-            progid = .list(i, 0)
-            clsid = .list(i, 1)
+
+            progid = .List(i, 0)
+            clsid = .List(i, 1)
             dll.manifestFile = Me.lblFilePath.Caption
             dll.dllFile = Me.lblDllFile.Caption
-            .list(i, 2) = VBA.IIf(dll.oCtxTest(clsid, progid, senario), "success", "failed")
+            .List(i, 2) = VBA.IIf(dll.oCtxTest(clsid, progid, senario), "success", "failed")
         End With
     Next
 
